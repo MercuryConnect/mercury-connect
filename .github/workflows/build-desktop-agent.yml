@@ -1,0 +1,155 @@
+name: Build Desktop Agent
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'desktop-agent/**'
+      - '.github/workflows/build-desktop-agent.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: win
+          - os: macos-latest
+            platform: mac
+          - os: ubuntu-latest
+            platform: linux
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+
+      # Install native build dependencies for robotjs
+      - name: Install Linux dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxtst-dev libpng++-dev libx11-dev
+
+      - name: Install Windows build tools
+        if: matrix.os == 'windows-latest'
+        run: npm install -g windows-build-tools --vs2019 || true
+
+      - name: Install dependencies
+        working-directory: desktop-agent
+        run: pnpm install
+
+      - name: Rebuild native modules for Electron
+        working-directory: desktop-agent
+        run: |
+          npx electron-rebuild -f -w @nut-tree-fork/nut-js || true
+        continue-on-error: true
+
+      - name: Build application
+        working-directory: desktop-agent
+        run: pnpm build
+
+      - name: Package for ${{ matrix.platform }}
+        working-directory: desktop-agent
+        run: pnpm package:${{ matrix.platform }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: desktop-agent-${{ matrix.platform }}
+          path: |
+            desktop-agent/release/*.exe
+            desktop-agent/release/*.dmg
+            desktop-agent/release/*.AppImage
+            desktop-agent/release/*.deb
+          if-no-files-found: ignore
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: desktop-agent-win
+          path: release/
+        continue-on-error: true
+
+      - name: Download macOS artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: desktop-agent-mac
+          path: release/
+        continue-on-error: true
+
+      - name: Download Linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: desktop-agent-linux
+          path: release/
+        continue-on-error: true
+
+      - name: List release files
+        run: ls -la release/ || echo "No release files found"
+
+      - name: Rename files to remove spaces
+        run: |
+          cd release
+          for f in *; do
+            if [[ "$f" == *" "* ]]; then
+              mv "$f" "${f// /-}"
+            fi
+          done
+          ls -la
+
+      - name: Delete existing release
+        run: |
+          gh release delete latest --yes || true
+          git push origin :refs/tags/latest || true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: latest
+          name: Mercury Remote Agent - Latest
+          body: |
+            ## Mercury Remote Agent
+            
+            Download the appropriate version for your operating system:
+            - **Windows**: Mercury-Remote-Agent-Setup.exe
+            - **macOS**: Mercury-Remote-Agent.dmg
+            - **Linux**: Mercury-Remote-Agent.AppImage
+            
+            ### Instructions
+            1. Download the file for your OS
+            2. Run the installer/application
+            3. Enter the session details provided by your support contact
+            4. Click Connect
+          files: release/*
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

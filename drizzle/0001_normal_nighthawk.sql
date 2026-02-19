@@ -1,0 +1,1 @@
+ALTER TABLE `sessions` ADD `autoRecord` boolean DEFAULT false;

@@ -1,0 +1,1590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https: wss: ws:; img-src 'self' data: blob:; media-src 'self' blob:;">
+  <title>Mercury Remote Agent</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --mercury-blue: #1E5AA8;
+      --mercury-blue-dark: #1a4f94;
+      --mercury-orange: #E86C2C;
+      --bg-primary: #f8fafc;
+      --bg-secondary: #ffffff;
+      --text-primary: #1e293b;
+      --text-secondary: #64748b;
+      --border-color: #e2e8f0;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --error: #ef4444;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .header {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-color);
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .header-logo {
+      height: 32px;
+      width: auto;
+    }
+
+    .header h1 {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .main {
+      flex: 1;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      overflow-y: auto;
+    }
+
+    .card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .card-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 16px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      font-size: 14px;
+      transition: border-color 0.2s;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: var(--mercury-blue);
+    }
+
+    .form-group input.mono {
+      font-family: 'SF Mono', Monaco, Consolas, monospace;
+      letter-spacing: 2px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      width: 100%;
+    }
+
+    .btn-primary {
+      background: var(--mercury-blue);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: var(--mercury-blue-dark);
+    }
+
+    .btn-primary:disabled {
+      background: #94a3b8;
+      cursor: not-allowed;
+    }
+
+    .btn-danger {
+      background: var(--error);
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background: #dc2626;
+    }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+    }
+
+    .btn-outline:hover {
+      background: var(--bg-primary);
+    }
+
+    .btn-active {
+      background: var(--mercury-blue);
+      color: white;
+      border-color: var(--mercury-blue);
+    }
+
+    .btn-muted {
+      background: var(--error);
+      color: white;
+      border-color: var(--error);
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .status-badge.disconnected {
+      background: #fef2f2;
+      color: var(--error);
+    }
+
+    .status-badge.connecting {
+      background: #fffbeb;
+      color: var(--warning);
+    }
+
+    .status-badge.connected {
+      background: #f0fdf4;
+      color: var(--success);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    .status-dot.pulse {
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .info-row:last-child {
+      border-bottom: none;
+    }
+
+    .info-label {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .info-value {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .screen-preview {
+      width: 100%;
+      aspect-ratio: 16/9;
+      background: #1e293b;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 16px;
+      position: relative;
+    }
+
+    .screen-preview video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .camera-preview {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      width: 120px;
+      height: 90px;
+      background: #000;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 2px solid var(--mercury-blue);
+    }
+
+    .camera-preview video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .camera-preview.hidden {
+      display: none;
+    }
+
+    .screen-list {
+      display: grid;
+      gap: 12px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .screen-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      border: 2px solid var(--border-color);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .screen-item:hover {
+      border-color: var(--mercury-blue);
+      background: #f0f7ff;
+    }
+
+    .screen-item.selected {
+      border-color: var(--mercury-blue);
+      background: #e0efff;
+    }
+
+    .screen-item img {
+      width: 80px;
+      height: 45px;
+      object-fit: cover;
+      border-radius: 4px;
+      background: #1e293b;
+    }
+
+    .screen-item-name {
+      font-size: 13px;
+      font-weight: 500;
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .footer {
+      padding: 12px 20px;
+      text-align: center;
+      font-size: 11px;
+      color: var(--text-secondary);
+      border-top: 1px solid var(--border-color);
+      background: var(--bg-secondary);
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 2px solid transparent;
+      border-top-color: currentColor;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .control-section {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .control-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .control-row .btn {
+      flex: 1;
+      padding: 10px 16px;
+      font-size: 13px;
+    }
+
+    .media-controls {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .media-btn {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      padding: 12px;
+      border: 2px solid var(--border-color);
+      border-radius: 8px;
+      background: var(--bg-secondary);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .media-btn:hover {
+      border-color: var(--mercury-blue);
+      background: #f0f7ff;
+    }
+
+    .media-btn.active {
+      border-color: var(--success);
+      background: #f0fdf4;
+    }
+
+    .media-btn.muted {
+      border-color: var(--error);
+      background: #fef2f2;
+    }
+
+    .media-btn svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    .media-btn span {
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    .alert {
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-bottom: 16px;
+    }
+
+    .alert-warning {
+      background: #fffbeb;
+      border: 1px solid #fcd34d;
+      color: #92400e;
+    }
+
+    .alert-info {
+      background: #eff6ff;
+      border: 1px solid #93c5fd;
+      color: #1e40af;
+    }
+
+    .alert-success {
+      background: #f0fdf4;
+      border: 1px solid #86efac;
+      color: #166534;
+    }
+
+    .permission-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px;
+      background: var(--bg-primary);
+      border-radius: 8px;
+      margin-bottom: 8px;
+    }
+
+    .permission-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: var(--mercury-blue);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .permission-text {
+      flex: 1;
+    }
+
+    .permission-text strong {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 2px;
+    }
+
+    .permission-text span {
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .media-section {
+      margin-top: 16px;
+      padding: 16px;
+      background: var(--bg-primary);
+      border-radius: 8px;
+    }
+
+    .media-section-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <svg class="header-logo" viewBox="0 0 200 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <text x="0" y="35" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#1E5AA8">MERCURY</text>
+      <text x="0" y="48" font-family="Arial, sans-serif" font-size="10" fill="#E86C2C">HOLDINGS</text>
+    </svg>
+    <h1>Remote Agent</h1>
+  </header>
+
+  <main class="main">
+    <!-- Join Session Card -->
+    <div class="card" id="joinCard">
+      <h2 class="card-title">Join Support Session</h2>
+      
+      <div class="alert alert-info">
+        <strong>How it works:</strong> Enter the session ID and password provided by your support technician to start a secure remote support session.
+      </div>
+      
+      <div class="form-group">
+        <label for="serverUrl">Server URL</label>
+        <input type="text" id="serverUrl" placeholder="https://connect.mercuryholdings.co" value="https://connect.mercuryholdings.co">
+      </div>
+      
+      <div class="form-group">
+        <label for="sessionId">Session ID</label>
+        <input type="text" id="sessionId" class="mono" placeholder="e.g., abc123def456">
+      </div>
+      
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="text" id="password" class="mono" placeholder="Enter 8-character password" maxlength="8">
+      </div>
+      
+      <div class="form-group">
+        <label for="clientName">Your Name (optional)</label>
+        <input type="text" id="clientName" placeholder="e.g., John Smith">
+      </div>
+      
+      <div id="joinError" class="alert alert-warning hidden"></div>
+      
+      <button class="btn btn-primary" id="joinBtn">
+        <span>Connect to Session</span>
+      </button>
+    </div>
+
+    <!-- Permission Card -->
+    <div class="card hidden" id="permissionCard">
+      <h2 class="card-title">Grant Permissions</h2>
+      
+      <div class="alert alert-info">
+        To allow your support technician to assist you, please grant the following permissions:
+      </div>
+      
+      <div class="permission-item">
+        <div class="permission-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+            <line x1="8" y1="21" x2="16" y2="21"></line>
+            <line x1="12" y1="17" x2="12" y2="21"></line>
+          </svg>
+        </div>
+        <div class="permission-text">
+          <strong>Screen Sharing</strong>
+          <span>Share your screen so the technician can see what you see</span>
+        </div>
+      </div>
+      
+      <div class="permission-item">
+        <div class="permission-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+            <line x1="12" y1="19" x2="12" y2="23"></line>
+            <line x1="8" y1="23" x2="16" y2="23"></line>
+          </svg>
+        </div>
+        <div class="permission-text">
+          <strong>Microphone (Optional)</strong>
+          <span>Talk to your support technician during the session</span>
+        </div>
+      </div>
+      
+      <div class="permission-item">
+        <div class="permission-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M23 7l-7 5 7 5V7z"></path>
+            <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+          </svg>
+        </div>
+        <div class="permission-text">
+          <strong>Camera (Optional)</strong>
+          <span>Show your face to the support technician</span>
+        </div>
+      </div>
+      
+      <div class="permission-item">
+        <div class="permission-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="4 17 10 11 4 5"></polyline>
+            <line x1="12" y1="19" x2="20" y2="19"></line>
+          </svg>
+        </div>
+        <div class="permission-text">
+          <strong>Remote Control</strong>
+          <span>Allow the technician to control your mouse and keyboard</span>
+        </div>
+      </div>
+      
+      <div style="display: flex; gap: 12px; margin-top: 20px;">
+        <button class="btn btn-outline" id="cancelPermissionBtn" style="flex: 1;">Cancel</button>
+        <button class="btn btn-primary" id="grantPermissionBtn" style="flex: 2;">Continue</button>
+      </div>
+    </div>
+
+    <!-- Screen Selection Card -->
+    <div class="card hidden" id="screenCard">
+      <h2 class="card-title">Select Screen to Share</h2>
+      
+      <div class="alert alert-info">
+        Choose which screen or window you want to share with your support technician.
+      </div>
+      
+      <div class="screen-list" id="screenList">
+        <!-- Screens will be populated here -->
+      </div>
+      
+      <div class="media-section">
+        <div class="media-section-title">Audio & Video Options</div>
+        <div class="media-controls">
+          <div class="media-btn" id="toggleMicBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+              <line x1="12" y1="19" x2="12" y2="23"></line>
+              <line x1="8" y1="23" x2="16" y2="23"></line>
+            </svg>
+            <span id="micStatus">Enable Mic</span>
+          </div>
+          <div class="media-btn" id="toggleCameraBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M23 7l-7 5 7 5V7z"></path>
+              <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+            </svg>
+            <span id="cameraStatus">Enable Camera</span>
+          </div>
+        </div>
+      </div>
+      
+      <button class="btn btn-primary" id="startShareBtn" disabled style="margin-top: 16px;">
+        <span>Start Sharing</span>
+      </button>
+    </div>
+
+    <!-- Connected Card -->
+    <div class="card hidden" id="connectedCard">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h2 class="card-title" style="margin-bottom: 0;">Session Active</h2>
+        <span class="status-badge connected" id="statusBadge">
+          <span class="status-dot pulse"></span>
+          <span id="statusText">Connected</span>
+        </span>
+      </div>
+      
+      <div class="screen-preview">
+        <video id="previewVideo" autoplay muted playsinline></video>
+        <div class="camera-preview hidden" id="cameraPreview">
+          <video id="cameraVideo" autoplay muted playsinline></video>
+        </div>
+      </div>
+      
+      <div class="info-row">
+        <span class="info-label">Session ID</span>
+        <span class="info-value" id="connectedSessionId">-</span>
+      </div>
+      
+      <div class="info-row">
+        <span class="info-label">Duration</span>
+        <span class="info-value" id="duration">00:00:00</span>
+      </div>
+      
+      <div class="info-row">
+        <span class="info-label">Remote Control</span>
+        <span class="info-value" id="controlStatus">Enabled</span>
+      </div>
+      
+      <!-- Audio/Video Controls -->
+      <div class="media-section">
+        <div class="media-section-title">Audio & Video</div>
+        <div class="media-controls">
+          <div class="media-btn" id="micControlBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="micIcon">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+              <line x1="12" y1="19" x2="12" y2="23"></line>
+              <line x1="8" y1="23" x2="16" y2="23"></line>
+            </svg>
+            <span id="micControlStatus">Mic Off</span>
+          </div>
+          <div class="media-btn" id="cameraControlBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="cameraIcon">
+              <path d="M23 7l-7 5 7 5V7z"></path>
+              <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+            </svg>
+            <span id="cameraControlStatus">Camera Off</span>
+          </div>
+        </div>
+      </div>
+      
+      <div class="control-section">
+        <div class="control-row">
+          <button class="btn btn-outline" id="sendClipboardBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path>
+              <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+            </svg>
+            Send Clipboard
+          </button>
+          <button class="btn btn-outline" id="pauseControlBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="6" y="4" width="4" height="16"></rect>
+              <rect x="14" y="4" width="4" height="16"></rect>
+            </svg>
+            Pause Control
+          </button>
+        </div>
+      </div>
+      
+      <button class="btn btn-danger" id="endSessionBtn" style="margin-top: 16px;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
+          <line x1="12" y1="2" x2="12" y2="12"></line>
+        </svg>
+        End Session
+      </button>
+    </div>
+  </main>
+
+  <footer class="footer">
+    Mercury Holdings Remote Agent v1.0.0 | Secure Remote Support | All connections are encrypted
+  </footer>
+
+  <script>
+    // Configuration
+    const ICE_SERVERS = [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:stun2.l.google.com:19302' },
+      { urls: 'stun:stun3.l.google.com:19302' },
+      { urls: 'stun:stun4.l.google.com:19302' },
+    ];
+
+    // State
+    let state = {
+      serverUrl: '',
+      sessionId: '',
+      password: '',
+      clientName: '',
+      selectedSource: null,
+      peerConnection: null,
+      dataChannel: null,
+      screenStream: null,
+      audioStream: null,
+      videoStream: null,
+      startTime: null,
+      durationInterval: null,
+      pollingInterval: null,
+      controlEnabled: true,
+      iceCandidates: [],
+      offerSent: false,
+      micEnabled: false,
+      cameraEnabled: false,
+      audioTrack: null,
+      videoTrack: null,
+    };
+
+    // DOM Elements
+    const joinCard = document.getElementById('joinCard');
+    const permissionCard = document.getElementById('permissionCard');
+    const screenCard = document.getElementById('screenCard');
+    const connectedCard = document.getElementById('connectedCard');
+    const joinBtn = document.getElementById('joinBtn');
+    const startShareBtn = document.getElementById('startShareBtn');
+    const endSessionBtn = document.getElementById('endSessionBtn');
+    const sendClipboardBtn = document.getElementById('sendClipboardBtn');
+    const pauseControlBtn = document.getElementById('pauseControlBtn');
+    const grantPermissionBtn = document.getElementById('grantPermissionBtn');
+    const cancelPermissionBtn = document.getElementById('cancelPermissionBtn');
+    const screenList = document.getElementById('screenList');
+    const serverUrlInput = document.getElementById('serverUrl');
+    const sessionIdInput = document.getElementById('sessionId');
+    const passwordInput = document.getElementById('password');
+    const clientNameInput = document.getElementById('clientName');
+    const joinError = document.getElementById('joinError');
+    const toggleMicBtn = document.getElementById('toggleMicBtn');
+    const toggleCameraBtn = document.getElementById('toggleCameraBtn');
+    const micControlBtn = document.getElementById('micControlBtn');
+    const cameraControlBtn = document.getElementById('cameraControlBtn');
+    const cameraPreview = document.getElementById('cameraPreview');
+    const cameraVideo = document.getElementById('cameraVideo');
+
+    // Parse URL parameters and check for auto-connect
+    function parseUrlParams() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const sessionId = urlParams.get('session') || urlParams.get('s');
+      const server = urlParams.get('server') || urlParams.get('url');
+      const password = urlParams.get('password') || urlParams.get('p');
+      const autoConnect = urlParams.get('auto') === 'true' || urlParams.get('auto') === '1';
+      
+      if (sessionId) {
+        sessionIdInput.value = sessionId;
+      }
+      if (server) {
+        serverUrlInput.value = server;
+      }
+      if (password) {
+        passwordInput.value = password.toUpperCase();
+      }
+      
+      // Also check localStorage for session info (set by web page)
+      try {
+        const storedSession = localStorage.getItem('mercury_connect_session');
+        if (storedSession) {
+          const sessionData = JSON.parse(storedSession);
+          // Only use if recent (within 5 minutes)
+          if (Date.now() - sessionData.timestamp < 5 * 60 * 1000) {
+            if (!sessionIdInput.value && sessionData.sessionId) {
+              sessionIdInput.value = sessionData.sessionId;
+            }
+            if (!passwordInput.value && sessionData.password) {
+              passwordInput.value = sessionData.password.toUpperCase();
+            }
+          }
+          // Clear after reading
+          localStorage.removeItem('mercury_connect_session');
+        }
+      } catch (e) {
+        console.error('Failed to read stored session:', e);
+      }
+      
+      // Auto-connect if all required fields are present
+      if (autoConnect && sessionIdInput.value && passwordInput.value && serverUrlInput.value) {
+        setTimeout(() => joinSession(), 500);
+      }
+    }
+
+    // Show/hide cards
+    function showCard(cardId) {
+      [joinCard, permissionCard, screenCard, connectedCard].forEach(card => {
+        card.classList.add('hidden');
+      });
+      document.getElementById(cardId).classList.remove('hidden');
+    }
+
+    // Show error
+    function showError(message) {
+      joinError.textContent = message;
+      joinError.classList.remove('hidden');
+    }
+
+    // Hide error
+    function hideError() {
+      joinError.classList.add('hidden');
+    }
+
+    // Load available screens
+    async function loadScreens() {
+      if (window.electronAPI) {
+        const sources = await window.electronAPI.getSources();
+        screenList.innerHTML = '';
+        
+        sources.forEach(source => {
+          const item = document.createElement('div');
+          item.className = 'screen-item';
+          item.innerHTML = `
+            <img src="${source.thumbnail}" alt="${source.name}">
+            <span class="screen-item-name">${source.name}</span>
+          `;
+          item.addEventListener('click', () => {
+            document.querySelectorAll('.screen-item').forEach(el => el.classList.remove('selected'));
+            item.classList.add('selected');
+            state.selectedSource = source;
+            startShareBtn.disabled = false;
+          });
+          screenList.appendChild(item);
+        });
+      }
+    }
+
+    // Toggle microphone before starting
+    async function toggleMicPreview() {
+      if (!state.micEnabled) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          state.audioStream = stream;
+          state.micEnabled = true;
+          toggleMicBtn.classList.add('active');
+          document.getElementById('micStatus').textContent = 'Mic On';
+        } catch (error) {
+          console.error('Failed to get microphone:', error);
+          alert('Could not access microphone. Please check permissions.');
+        }
+      } else {
+        if (state.audioStream) {
+          state.audioStream.getTracks().forEach(track => track.stop());
+          state.audioStream = null;
+        }
+        state.micEnabled = false;
+        toggleMicBtn.classList.remove('active');
+        document.getElementById('micStatus').textContent = 'Enable Mic';
+      }
+    }
+
+    // Toggle camera before starting
+    async function toggleCameraPreview() {
+      if (!state.cameraEnabled) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { width: 320, height: 240, facingMode: 'user' } 
+          });
+          state.videoStream = stream;
+          state.cameraEnabled = true;
+          toggleCameraBtn.classList.add('active');
+          document.getElementById('cameraStatus').textContent = 'Camera On';
+        } catch (error) {
+          console.error('Failed to get camera:', error);
+          alert('Could not access camera. Please check permissions.');
+        }
+      } else {
+        if (state.videoStream) {
+          state.videoStream.getTracks().forEach(track => track.stop());
+          state.videoStream = null;
+        }
+        state.cameraEnabled = false;
+        toggleCameraBtn.classList.remove('active');
+        document.getElementById('cameraStatus').textContent = 'Enable Camera';
+      }
+    }
+
+    // Toggle microphone during session
+    async function toggleMicDuringSession() {
+      if (!state.micEnabled) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          state.audioStream = stream;
+          state.audioTrack = stream.getAudioTracks()[0];
+          state.micEnabled = true;
+          
+          // Add track to peer connection
+          if (state.peerConnection && state.audioTrack) {
+            state.peerConnection.addTrack(state.audioTrack, stream);
+            // Notify viewer that audio is available
+            if (state.dataChannel && state.dataChannel.readyState === 'open') {
+              state.dataChannel.send(JSON.stringify({ type: 'audio_enabled', enabled: true }));
+            }
+          }
+          
+          micControlBtn.classList.add('active');
+          micControlBtn.classList.remove('muted');
+          document.getElementById('micControlStatus').textContent = 'Mic On';
+        } catch (error) {
+          console.error('Failed to get microphone:', error);
+          alert('Could not access microphone. Please check permissions.');
+        }
+      } else {
+        if (state.audioTrack) {
+          state.audioTrack.stop();
+          state.audioTrack = null;
+        }
+        if (state.audioStream) {
+          state.audioStream.getTracks().forEach(track => track.stop());
+          state.audioStream = null;
+        }
+        state.micEnabled = false;
+        
+        // Notify viewer
+        if (state.dataChannel && state.dataChannel.readyState === 'open') {
+          state.dataChannel.send(JSON.stringify({ type: 'audio_enabled', enabled: false }));
+        }
+        
+        micControlBtn.classList.remove('active');
+        micControlBtn.classList.add('muted');
+        document.getElementById('micControlStatus').textContent = 'Mic Off';
+      }
+    }
+
+    // Toggle camera during session
+    async function toggleCameraDuringSession() {
+      if (!state.cameraEnabled) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { width: 320, height: 240, facingMode: 'user' } 
+          });
+          state.videoStream = stream;
+          state.videoTrack = stream.getVideoTracks()[0];
+          state.cameraEnabled = true;
+          
+          // Show camera preview
+          cameraVideo.srcObject = stream;
+          cameraPreview.classList.remove('hidden');
+          
+          // Add track to peer connection
+          if (state.peerConnection && state.videoTrack) {
+            state.peerConnection.addTrack(state.videoTrack, stream);
+            // Notify viewer that video is available
+            if (state.dataChannel && state.dataChannel.readyState === 'open') {
+              state.dataChannel.send(JSON.stringify({ type: 'video_enabled', enabled: true }));
+            }
+          }
+          
+          cameraControlBtn.classList.add('active');
+          cameraControlBtn.classList.remove('muted');
+          document.getElementById('cameraControlStatus').textContent = 'Camera On';
+        } catch (error) {
+          console.error('Failed to get camera:', error);
+          alert('Could not access camera. Please check permissions.');
+        }
+      } else {
+        if (state.videoTrack) {
+          state.videoTrack.stop();
+          state.videoTrack = null;
+        }
+        if (state.videoStream) {
+          state.videoStream.getTracks().forEach(track => track.stop());
+          state.videoStream = null;
+        }
+        state.cameraEnabled = false;
+        
+        // Hide camera preview
+        cameraPreview.classList.add('hidden');
+        cameraVideo.srcObject = null;
+        
+        // Notify viewer
+        if (state.dataChannel && state.dataChannel.readyState === 'open') {
+          state.dataChannel.send(JSON.stringify({ type: 'video_enabled', enabled: false }));
+        }
+        
+        cameraControlBtn.classList.remove('active');
+        cameraControlBtn.classList.add('muted');
+        document.getElementById('cameraControlStatus').textContent = 'Camera Off';
+      }
+    }
+
+    // Verify session with server
+    async function verifySession() {
+      const response = await fetch(`${state.serverUrl}/api/trpc/signaling.join?batch=1`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          "0": {
+            "json": {
+              "sessionId": state.sessionId,
+              "password": state.password,
+              "clientName": state.clientName
+            }
+          }
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (data[0]?.error) {
+        throw new Error(data[0].error.json?.message || 'Failed to join session');
+      }
+      
+      return data[0]?.result?.data?.json;
+    }
+
+    // Join session
+    async function joinSession() {
+      state.serverUrl = serverUrlInput.value.trim().replace(/\/$/, '');
+      state.sessionId = sessionIdInput.value.trim();
+      state.password = passwordInput.value.trim().toUpperCase();
+      state.clientName = clientNameInput.value.trim() || 'Client';
+
+      if (!state.serverUrl) {
+        showError('Please enter the server URL');
+        return;
+      }
+
+      if (!state.sessionId || !state.password) {
+        showError('Please enter session ID and password');
+        return;
+      }
+
+      hideError();
+      joinBtn.innerHTML = '<span class="spinner"></span><span>Verifying...</span>';
+      joinBtn.disabled = true;
+
+      try {
+        // Verify session with server
+        await verifySession();
+        
+        // Show permission card
+        showCard('permissionCard');
+      } catch (error) {
+        console.error('Join error:', error);
+        showError(error.message || 'Failed to connect to session');
+      } finally {
+        joinBtn.innerHTML = '<span>Connect to Session</span>';
+        joinBtn.disabled = false;
+      }
+    }
+
+    // Grant permissions and proceed
+    async function grantPermissions() {
+      try {
+        await loadScreens();
+        showCard('screenCard');
+      } catch (error) {
+        console.error('Permission error:', error);
+        showError('Failed to get screen access');
+        showCard('joinCard');
+      }
+    }
+
+    // Start screen sharing
+    async function startScreenShare() {
+      if (!state.selectedSource) {
+        alert('Please select a screen to share');
+        return;
+      }
+
+      startShareBtn.innerHTML = '<span class="spinner"></span><span>Starting...</span>';
+      startShareBtn.disabled = true;
+
+      try {
+        // Get screen stream using Electron's desktopCapturer
+        const screenStream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: {
+            mandatory: {
+              chromeMediaSource: 'desktop',
+              chromeMediaSourceId: state.selectedSource.id,
+              minWidth: 1280,
+              maxWidth: 1920,
+              minHeight: 720,
+              maxHeight: 1080,
+              maxFrameRate: 30,
+            }
+          }
+        });
+
+        state.screenStream = screenStream;
+        
+        // Setup WebRTC connection
+        await setupWebRTC();
+        
+        // Show connected card
+        showCard('connectedCard');
+        document.getElementById('connectedSessionId').textContent = state.sessionId;
+        
+        // Set preview video
+        const previewVideo = document.getElementById('previewVideo');
+        previewVideo.srcObject = screenStream;
+        
+        // Setup camera preview if enabled
+        if (state.cameraEnabled && state.videoStream) {
+          cameraVideo.srcObject = state.videoStream;
+          cameraPreview.classList.remove('hidden');
+          cameraControlBtn.classList.add('active');
+          document.getElementById('cameraControlStatus').textContent = 'Camera On';
+        }
+        
+        // Update mic status
+        if (state.micEnabled) {
+          micControlBtn.classList.add('active');
+          document.getElementById('micControlStatus').textContent = 'Mic On';
+        }
+        
+        // Start duration timer
+        state.startTime = Date.now();
+        state.durationInterval = setInterval(updateDuration, 1000);
+        
+      } catch (error) {
+        console.error('Screen share error:', error);
+        alert('Failed to start screen sharing: ' + error.message);
+        startShareBtn.innerHTML = '<span>Start Sharing</span>';
+        startShareBtn.disabled = false;
+      }
+    }
+
+    // Setup WebRTC
+    async function setupWebRTC() {
+      const config = {
+        iceServers: ICE_SERVERS,
+      };
+
+      const pc = new RTCPeerConnection(config);
+      state.peerConnection = pc;
+      state.iceCandidates = [];
+      state.offerSent = false;
+
+      // Add screen tracks
+      state.screenStream.getTracks().forEach(track => {
+        pc.addTrack(track, state.screenStream);
+      });
+
+      // Add audio track if enabled
+      if (state.micEnabled && state.audioStream) {
+        state.audioTrack = state.audioStream.getAudioTracks()[0];
+        if (state.audioTrack) {
+          pc.addTrack(state.audioTrack, state.audioStream);
+        }
+      }
+
+      // Add video track if enabled
+      if (state.cameraEnabled && state.videoStream) {
+        state.videoTrack = state.videoStream.getVideoTracks()[0];
+        if (state.videoTrack) {
+          pc.addTrack(state.videoTrack, state.videoStream);
+        }
+      }
+
+      // Create data channel for control messages
+      const dataChannel = pc.createDataChannel('control', {
+        ordered: true,
+      });
+      state.dataChannel = dataChannel;
+      
+      dataChannel.onopen = () => {
+        console.log('Data channel opened');
+        // Send initial media state
+        dataChannel.send(JSON.stringify({ 
+          type: 'media_state', 
+          audio: state.micEnabled, 
+          video: state.cameraEnabled 
+        }));
+      };
+      
+      dataChannel.onmessage = handleControlMessage;
+
+      // Handle ICE candidates
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          state.iceCandidates.push(event.candidate.toJSON());
+        }
+      };
+
+      pc.onicegatheringstatechange = async () => {
+        console.log('ICE gathering state:', pc.iceGatheringState);
+        if (pc.iceGatheringState === 'complete' && !state.offerSent) {
+          state.offerSent = true;
+          await sendOfferToServer();
+        }
+      };
+
+      pc.oniceconnectionstatechange = () => {
+        console.log('ICE connection state:', pc.iceConnectionState);
+        updateConnectionStatus(pc.iceConnectionState);
+      };
+
+      // Create offer
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      
+      // Start polling for answer
+      startPollingForAnswer();
+    }
+
+    // Send offer to server
+    async function sendOfferToServer() {
+      try {
+        const response = await fetch(`${state.serverUrl}/api/trpc/signaling.sendOfferFromClient?batch=1`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            "0": {
+              "json": {
+                "sessionId": state.sessionId,
+                "offer": state.peerConnection.localDescription.toJSON(),
+                "iceCandidates": state.iceCandidates,
+                "mediaState": {
+                  "audio": state.micEnabled,
+                  "video": state.cameraEnabled
+                }
+              }
+            }
+          }),
+        });
+
+        const data = await response.json();
+        console.log('Offer sent:', data);
+      } catch (error) {
+        console.error('Failed to send offer:', error);
+      }
+    }
+
+    // Poll for answer from viewer
+    function startPollingForAnswer() {
+      state.pollingInterval = setInterval(async () => {
+        try {
+          const response = await fetch(`${state.serverUrl}/api/trpc/signaling.getAnswer?batch=1&input=${encodeURIComponent(JSON.stringify({"0":{"json":{"sessionId":state.sessionId}}}))}`);
+          const data = await response.json();
+          
+          const result = data[0]?.result?.data?.json;
+          if (result?.answer) {
+            clearInterval(state.pollingInterval);
+            await handleAnswer(result.answer, result.iceCandidates || []);
+          }
+        } catch (error) {
+          console.error('Polling error:', error);
+        }
+      }, 1000);
+    }
+
+    // Handle answer from viewer
+    async function handleAnswer(answer, iceCandidates) {
+      try {
+        if (state.peerConnection.signalingState === 'have-local-offer') {
+          await state.peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+          
+          // Add ICE candidates
+          for (const candidate of iceCandidates) {
+            try {
+              await state.peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+            } catch (e) {
+              console.warn('Failed to add ICE candidate:', e);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Failed to handle answer:', error);
+      }
+    }
+
+    // Handle control messages from viewer
+    async function handleControlMessage(event) {
+      try {
+        const message = JSON.parse(event.data);
+        
+        // Handle media control commands from host
+        if (message.type === 'mute_audio') {
+          if (state.micEnabled) {
+            await toggleMicDuringSession();
+          }
+          return;
+        }
+        
+        if (message.type === 'unmute_audio') {
+          if (!state.micEnabled) {
+            await toggleMicDuringSession();
+          }
+          return;
+        }
+        
+        if (message.type === 'disable_video') {
+          if (state.cameraEnabled) {
+            await toggleCameraDuringSession();
+          }
+          return;
+        }
+        
+        if (message.type === 'enable_video') {
+          if (!state.cameraEnabled) {
+            await toggleCameraDuringSession();
+          }
+          return;
+        }
+        
+        if (!state.controlEnabled) return;
+        
+        if (window.electronAPI) {
+          switch (message.type) {
+            case 'mousemove':
+              await window.electronAPI.mouseMove(message.x, message.y);
+              break;
+              
+            case 'mousedown':
+              const downBtn = message.button === 0 ? 'left' : message.button === 2 ? 'right' : 'middle';
+              await window.electronAPI.mouseDown(downBtn);
+              break;
+              
+            case 'mouseup':
+              const upBtn = message.button === 0 ? 'left' : message.button === 2 ? 'right' : 'middle';
+              await window.electronAPI.mouseUp(upBtn);
+              break;
+              
+            case 'click':
+              const clickBtn = message.button === 0 ? 'left' : message.button === 2 ? 'right' : 'middle';
+              await window.electronAPI.mouseClick(clickBtn, message.doubleClick);
+              break;
+              
+            case 'scroll':
+              await window.electronAPI.mouseScroll(message.deltaX || 0, message.deltaY || 0);
+              break;
+              
+            case 'keydown':
+              const modifiers = [];
+              if (message.ctrlKey) modifiers.push('control');
+              if (message.shiftKey) modifiers.push('shift');
+              if (message.altKey) modifiers.push('alt');
+              if (message.metaKey) modifiers.push('meta');
+              await window.electronAPI.keyTap(message.key, modifiers);
+              break;
+              
+            case 'type':
+              await window.electronAPI.typeString(message.text);
+              break;
+              
+            case 'clipboard':
+              await window.electronAPI.clipboardWriteText(message.text);
+              break;
+              
+            case 'file':
+              // Receive file from viewer
+              if (message.fileName && message.data) {
+                const buffer = Uint8Array.from(atob(message.data), c => c.charCodeAt(0));
+                const result = await window.electronAPI.saveFile(message.fileName, buffer.buffer);
+                if (result.success) {
+                  // Send confirmation
+                  state.dataChannel.send(JSON.stringify({
+                    type: 'file_received',
+                    fileName: message.fileName,
+                    path: result.path,
+                  }));
+                }
+              }
+              break;
+          }
+        }
+      } catch (error) {
+        console.error('Control message error:', error);
+      }
+    }
+
+    // Send clipboard to viewer
+    async function sendClipboard() {
+      if (state.dataChannel && state.dataChannel.readyState === 'open') {
+        let text = '';
+        if (window.electronAPI) {
+          text = await window.electronAPI.clipboardReadText();
+        } else {
+          text = await navigator.clipboard.readText();
+        }
+        
+        state.dataChannel.send(JSON.stringify({
+          type: 'clipboard',
+          text: text,
+        }));
+        
+        alert('Clipboard sent to support technician');
+      } else {
+        alert('Connection not ready');
+      }
+    }
+
+    // Toggle control
+    function toggleControl() {
+      state.controlEnabled = !state.controlEnabled;
+      document.getElementById('controlStatus').textContent = state.controlEnabled ? 'Enabled' : 'Paused';
+      pauseControlBtn.innerHTML = state.controlEnabled ? `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="6" y="4" width="4" height="16"></rect>
+          <rect x="14" y="4" width="4" height="16"></rect>
+        </svg>
+        Pause Control
+      ` : `
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="5 3 19 12 5 21 5 3"></polygon>
+        </svg>
+        Resume Control
+      `;
+    }
+
+    // Update duration display
+    function updateDuration() {
+      if (!state.startTime) return;
+      
+      const elapsed = Math.floor((Date.now() - state.startTime) / 1000);
+      const hours = Math.floor(elapsed / 3600).toString().padStart(2, '0');
+      const minutes = Math.floor((elapsed % 3600) / 60).toString().padStart(2, '0');
+      const seconds = (elapsed % 60).toString().padStart(2, '0');
+      
+      document.getElementById('duration').textContent = `${hours}:${minutes}:${seconds}`;
+    }
+
+    // Update connection status
+    function updateConnectionStatus(iceState) {
+      const badge = document.getElementById('statusBadge');
+      const statusText = document.getElementById('statusText');
+      
+      if (iceState === 'connected' || iceState === 'completed') {
+        badge.className = 'status-badge connected';
+        statusText.textContent = 'Connected';
+      } else if (iceState === 'checking' || iceState === 'new') {
+        badge.className = 'status-badge connecting';
+        statusText.textContent = 'Connecting';
+      } else if (iceState === 'disconnected') {
+        badge.className = 'status-badge connecting';
+        statusText.textContent = 'Reconnecting';
+      } else {
+        badge.className = 'status-badge disconnected';
+        statusText.textContent = 'Disconnected';
+      }
+    }
+
+    // End session
+    async function endSession() {
+      // Notify server
+      try {
+        await fetch(`${state.serverUrl}/api/trpc/signaling.clientDisconnect?batch=1`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            "0": {
+              "json": {
+                "sessionId": state.sessionId
+              }
+            }
+          }),
+        });
+      } catch (e) {
+        console.error('Failed to notify server:', e);
+      }
+
+      // Cleanup
+      if (state.screenStream) {
+        state.screenStream.getTracks().forEach(track => track.stop());
+      }
+      if (state.audioStream) {
+        state.audioStream.getTracks().forEach(track => track.stop());
+      }
+      if (state.videoStream) {
+        state.videoStream.getTracks().forEach(track => track.stop());
+      }
+      if (state.peerConnection) {
+        state.peerConnection.close();
+      }
+      if (state.durationInterval) {
+        clearInterval(state.durationInterval);
+      }
+      if (state.pollingInterval) {
+        clearInterval(state.pollingInterval);
+      }
+      
+      state = {
+        serverUrl: state.serverUrl,
+        sessionId: '',
+        password: '',
+        clientName: '',
+        selectedSource: null,
+        peerConnection: null,
+        dataChannel: null,
+        screenStream: null,
+        audioStream: null,
+        videoStream: null,
+        startTime: null,
+        durationInterval: null,
+        pollingInterval: null,
+        controlEnabled: true,
+        iceCandidates: [],
+        offerSent: false,
+        micEnabled: false,
+        cameraEnabled: false,
+        audioTrack: null,
+        videoTrack: null,
+      };
+      
+      // Reset UI
+      cameraPreview.classList.add('hidden');
+      micControlBtn.classList.remove('active', 'muted');
+      cameraControlBtn.classList.remove('active', 'muted');
+      document.getElementById('micControlStatus').textContent = 'Mic Off';
+      document.getElementById('cameraControlStatus').textContent = 'Camera Off';
+      
+      showCard('joinCard');
+    }
+
+    // Event listeners
+    joinBtn.addEventListener('click', joinSession);
+    grantPermissionBtn.addEventListener('click', grantPermissions);
+    cancelPermissionBtn.addEventListener('click', () => showCard('joinCard'));
+    startShareBtn.addEventListener('click', startScreenShare);
+    endSessionBtn.addEventListener('click', endSession);
+    sendClipboardBtn.addEventListener('click', sendClipboard);
+    pauseControlBtn.addEventListener('click', toggleControl);
+    toggleMicBtn.addEventListener('click', toggleMicPreview);
+    toggleCameraBtn.addEventListener('click', toggleCameraPreview);
+    micControlBtn.addEventListener('click', toggleMicDuringSession);
+    cameraControlBtn.addEventListener('click', toggleCameraDuringSession);
+    
+    passwordInput.addEventListener('input', (e) => {
+      e.target.value = e.target.value.toUpperCase();
+    });
+
+    // Enter key to submit
+    [serverUrlInput, sessionIdInput, passwordInput, clientNameInput].forEach(input => {
+      input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          joinSession();
+        }
+      });
+    });
+
+    // Initialize
+    parseUrlParams();
+  </script>
+</body>
+</html>
